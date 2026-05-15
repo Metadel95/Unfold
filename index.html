@@ -910,12 +910,6 @@ const ABBR = { "Marriage": "M", "Pre-Marriage": "PM", "The Word": "TW", "Hot Tak
       vb.style.display = 'none';
     }
   }
-    function shareQuestion() {
-    const q = QUESTIONS[currentCat][currentIdx];
-    const text = q.verse ? `"${q.text}"\n\n${q.verse}` : `"${q.text}"`;
-    const shareBtn = document.getElementById('shareBtn');
-    const shareLabel = document.getElementById('shareLabel');
-    const shareIcon = document.getElementById('shareIcon');
 
     const showCopied = () => {
       shareBtn.classList.add('copied');
