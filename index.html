@@ -91,6 +91,20 @@
     .footer-cross-row { display:flex; align-items:center; gap:10px; color:var(--text-footer); }
     .footer-line { width:30px; height:1px; background:var(--border); }
     .footer-text { font-size:10px; color:var(--text-footer); letter-spacing:0.16em; text-transform:uppercase; }
+    /* ── SPINNER SCREEN ── */
+    .spinner-screen { text-align: center; }
+    .spinner-title { font-size:10px; letter-spacing:0.22em; text-transform:uppercase; color:var(--gold); margin-bottom:20px; display:block; }
+    .wheel-wrap { position:relative; display:inline-block; margin-bottom:28px; }
+    .wheel-canvas { border-radius:50%; display:block; }
+    .wheel-pointer { position:absolute; top:-18px; left:50%; transform:translateX(-50%); font-size:28px; line-height:1; }
+    .btn-spin { width:100%; padding:14px 20px; background:var(--gold); border:none; border-radius:4px; cursor:pointer; color:var(--bg); font-size:11px; letter-spacing:0.2em; text-transform:uppercase; font-family:'EB Garamond',serif; font-weight:700; transition:background 0.2s,transform 0.15s; }
+    .btn-spin:hover { background:var(--gold-light); transform:translateY(-1px); }
+    .btn-spin:disabled { opacity:0.5; cursor:not-allowed; transform:none; }
+    .spin-result { margin-top:20px; padding:16px; background:rgba(196,153,80,0.08); border:1px solid var(--border2); border-radius:6px; display:none; }
+    .spin-result-label { font-size:9px; letter-spacing:0.2em; text-transform:uppercase; color:var(--text-muted); display:block; margin-bottom:6px; }
+    .spin-result-name { font-family:'Playfair Display',serif; font-size:26px; color:var(--gold); }
+    .btn-show-question { width:100%; margin-top:12px; padding:14px 20px; background:transparent; border:1px solid var(--gold); border-radius:4px; cursor:pointer; color:var(--gold); font-size:11px; letter-spacing:0.2em; text-transform:uppercase; font-family:'EB Garamond',serif; font-weight:700; transition:background 0.2s; display:none; }
+    .btn-show-question:hover { background:rgba(196,153,80,0.1); }
     @media (max-width:400px) { body{padding:36px 14px 52px;} .card{padding:28px 18px 20px;} .setup-card{padding:24px 16px;} }
   </style>
 </head>
@@ -570,6 +584,103 @@
   let isOpen=false, transitioning=false, selectedCount=0;
 
   function abbr(c){return ABBR[c]||c.split(' ').map(w=>w[0]).join('');}
+/* ── WHEEL DRAWING ── */
+const WHEEL_COLORS = ['#2a2418','#1e1c14','#332d1e','#252010','#2e2718'];
+
+function drawWheel(angle) {
+  const canvas = document.getElementById('wheelCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const cx = 140, cy = 140, r = 130;
+  const slice = (2 * Math.PI) / players.length;
+  ctx.clearRect(0, 0, 280, 280);
+  players.forEach((name, i) => {
+    const start = angle + i * slice;
+    const end = start + slice;
+    // Slice
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, r, start, end);
+    ctx.closePath();
+    ctx.fillStyle = WHEEL_COLORS[i % WHEEL_COLORS.length];
+    ctx.fill();
+    ctx.strokeStyle = '#c49950';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    // Label
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(start + slice / 2);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#c49950';
+    ctx.font = "500 13px 'EB Garamond', serif";
+    ctx.fillText(name.length > 10 ? name.slice(0,10)+'…' : name, r - 10, 5);
+    ctx.restore();
+  });
+  // Center circle
+  ctx.beginPath();
+  ctx.arc(cx, cy, 18, 0, 2 * Math.PI);
+  ctx.fillStyle = '#0f0e0c';
+  ctx.fill();
+  ctx.strokeStyle = '#c49950';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+}
+
+let wheelAngle = 0;
+let spinning = false;
+
+function spinWheel() {
+  if (spinning) return;
+  spinning = true;
+  document.getElementById('btnSpin').disabled = true;
+  document.getElementById('spinResult').style.display = 'none';
+  document.getElementById('btnShowQuestion').style.display = 'none';
+
+  const extraSpins = (5 + Math.floor(Math.random() * 5)) * 2 * Math.PI;
+  const randomStop = Math.random() * 2 * Math.PI;
+  const totalRotation = extraSpins + randomStop;
+  const duration = 3500;
+  const start = performance.now();
+  const startAngle = wheelAngle;
+
+  function animate(now) {
+    const elapsed = now - start;
+    const progress = Math.min(elapsed / duration, 1);
+    // Ease out cubic
+    const eased = 1 - Math.pow(1 - progress, 3);
+    wheelAngle = startAngle + totalRotation * eased;
+    drawWheel(wheelAngle);
+    if (progress < 1) {
+      requestAnimationFrame(animate);
+    } else {
+      spinning = false;
+      wheelAngle = wheelAngle % (2 * Math.PI);
+      resolveWinner();
+    }
+  }
+  requestAnimationFrame(animate);
+}
+
+function resolveWinner() {
+  // Pointer is at top (270deg = -PI/2). Work out which slice is under it.
+  const slice = (2 * Math.PI) / players.length;
+  const pointerAngle = (Math.PI * 1.5 - wheelAngle % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
+  const winnerIdx = Math.floor(pointerAngle / slice) % players.length;
+  currentPlayer = players[winnerIdx];
+
+  document.getElementById('spinResultName').textContent = currentPlayer;
+  document.getElementById('spinResult').style.display = 'block';
+  document.getElementById('btnShowQuestion').style.display = 'block';
+  document.getElementById('btnSpin').disabled = false;
+}
+
+function goToQuestion() {
+  showScreen('screenGame');
+  buildPlayerPills();
+  updatePlayerPills();
+  renderCard();
+}
 
   /* ── SETUP ── */
   function buildCountRow(){
@@ -610,15 +721,13 @@
     document.getElementById('btnStart').disabled=!ok;
   }
 
-  function startGame(){
-    const inputs=document.querySelectorAll('.name-input');
-    players=[...inputs].map(i=>i.value.trim());
-    currentCat="Ice Breakers"; currentIdx=0; currentPlayer=null;
-    pickRandomPlayer();
-    showScreen('screenGame');
-    buildPlayerPills();
-    renderCard();
-  }
+  function startGame() {
+  const inputs = document.querySelectorAll('.name-input');
+  players = [...inputs].map(i => i.value.trim());
+  currentCat = "Ice Breakers"; currentIdx = 0; currentPlayer = null;
+  showScreen('screenSpinner');
+  setTimeout(() => drawWheel(0), 50);
+}
 
   function resetGame(){ showScreen('screenSetup'); }
 
@@ -653,16 +762,16 @@
   }
 
   /* ── GAME ── */
-  function nextQuestion(){
-    if(transitioning) return;
-    fadeOut(()=>{
-      const pool=QUESTIONS[currentCat].map((_,i)=>i).filter(i=>i!==currentIdx);
-      currentIdx=pool[Math.floor(Math.random()*pool.length)]??0;
-      pickRandomPlayer();
-      updatePlayerPills();
-      renderCard();
-    });
-  }
+  function nextQuestion() {
+    if (transitioning) return;
+    const pool = QUESTIONS[currentCat].map((_, i) => i).filter(i => i !== currentIdx);
+    currentIdx = pool[Math.floor(Math.random() * pool.length)] ?? 0;
+    document.getElementById('btnSpin').disabled = false;
+    document.getElementById('spinResult').style.display = 'none';
+    document.getElementById('btnShowQuestion').style.display = 'none';
+    showScreen('screenSpinner');
+    setTimeout(() => drawWheel(wheelAngle), 50);
+}
 
   function fadeOut(callback){
     transitioning=true;
