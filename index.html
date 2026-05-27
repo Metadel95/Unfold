@@ -105,6 +105,14 @@
     .spin-result-name { font-family:'Playfair Display',serif; font-size:26px; color:var(--gold); }
     .btn-show-question { width:100%; margin-top:12px; padding:14px 20px; background:transparent; border:1px solid var(--gold); border-radius:4px; cursor:pointer; color:var(--gold); font-size:11px; letter-spacing:0.2em; text-transform:uppercase; font-family:'EB Garamond',serif; font-weight:700; transition:background 0.2s; display:none; }
     .btn-show-question:hover { background:rgba(196,153,80,0.1); }
+    /* ── ADD PLAYER / PERSIST ── */
+    .btn-add-player { padding:6px 14px; border-radius:20px; background:rgba(196,153,80,0.07); border:1px dashed var(--border2); cursor:pointer; color:var(--text-dim); font-size:11px; letter-spacing:0.05em; font-family:'EB Garamond',serif; transition:all 0.2s; }
+    .btn-add-player:hover { border-color:var(--gold); color:var(--gold); }
+    .add-player-bar { display:none; flex-direction:row; gap:8px; margin-bottom:14px; }
+    .add-player-bar.open { display:flex; }
+    .add-player-input { flex:1; padding:8px 12px; background:rgba(255,255,255,0.03); border:1px solid var(--border2); border-radius:4px; color:var(--text-primary); font-size:14px; font-family:'EB Garamond',serif; outline:none; transition:border-color 0.2s; }
+    .add-player-input:focus { border-color:var(--gold); }
+    .btn-add-confirm { padding:8px 14px; background:var(--gold); border:none; border-radius:4px; cursor:pointer; color:var(--bg); font-size:11px; font-family:'EB Garamond',serif; font-weight:700; letter-spacing:0.1em; white-space:nowrap; }
     @media (max-width:400px) { body{padding:36px 14px 52px;} .card{padding:28px 18px 20px;} .setup-card{padding:24px 16px;} }
   </style>
 </head>
@@ -157,6 +165,12 @@
   <!-- GAME SCREEN -->
   <div class="screen" id="screenGame">
     <div class="player-pills" id="playerPills"></div>
+    <div class="add-player-bar" id="addPlayerBar">
+      <input class="add-player-input" id="addPlayerInput"
+        type="text" placeholder="Enter name…" maxlength="24" />
+      <button class="btn-add-confirm" onclick="confirmAddPlayer()">Add</button>
+</div>
+<button class="btn-add-player" onclick="toggleAddPlayer()">+ Add Player</button>
     <div class="dropdown-wrap" id="dropdownWrap">
       <button class="dropdown-btn" id="dropdownBtn" onclick="toggleDropdown()">
         <span class="dropdown-btn-label" id="catLabel">Ice Breakers</span>
@@ -693,6 +707,7 @@ function resolveWinner() {
 }
 
 function goToQuestion() {
+  saveState();
   showScreen('screenGame');
   buildPlayerPills();
   updatePlayerPills();
@@ -746,7 +761,12 @@ function goToQuestion() {
   setTimeout(() => drawWheel(0), 50);
 }
 
-  function resetGame(){ showScreen('screenSetup'); }
+  function resetGame() {
+  clearState();
+  players = []; currentPlayer = null; currentIdx = 0;
+  wheelAngle = 0;
+  showScreen('screenSetup');
+}
 
   function showScreen(id){
     document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
@@ -783,12 +803,13 @@ function goToQuestion() {
     if (transitioning) return;
     const pool = QUESTIONS[currentCat].map((_, i) => i).filter(i => i !== currentIdx);
     currentIdx = pool[Math.floor(Math.random() * pool.length)] ?? 0;
+    saveState();
     document.getElementById('btnSpin').disabled = false;
     document.getElementById('spinResult').style.display = 'none';
     document.getElementById('btnShowQuestion').style.display = 'none';
     showScreen('screenSpinner');
     setTimeout(() => drawWheel(wheelAngle), 50);
-}
+  }
 
   function fadeOut(callback){
     transitioning=true;
@@ -842,8 +863,67 @@ function goToQuestion() {
   document.addEventListener('mousedown',e=>{
     if(isOpen&&!document.getElementById('dropdownWrap').contains(e.target)) toggleDropdown();
   });
+  /* ── ADD PLAYER MID-GAME ── */
+  function toggleAddPlayer() {
+    const bar = document.getElementById('addPlayerBar');
+    const input = document.getElementById('addPlayerInput');
+    const isOpen = bar.classList.toggle('open');
+    if (isOpen) { input.focus(); input.value = ''; }
+  }
+
+  function confirmAddPlayer() {
+    const input = document.getElementById('addPlayerInput');
+    const name = input.value.trim();
+    if (!name) return;
+    if (players.includes(name)) {
+      input.value = '';
+      input.placeholder = 'Name already exists!';
+      setTimeout(() => input.placeholder = 'Enter name…', 2000);
+      return;
+    }
+    players.push(name);
+    saveState();
+    buildPlayerPills();
+    updatePlayerPills();
+    drawWheel(wheelAngle);
+    document.getElementById('addPlayerBar').classList.remove('open');
+    input.value = '';
+  }
+
+  /* ── LOCALSTORAGE ── */
+  function saveState() {
+    localStorage.setItem('ff_players', JSON.stringify(players));
+    localStorage.setItem('ff_cat', currentCat);
+    localStorage.setItem('ff_idx', currentIdx);
+    localStorage.setItem('ff_player', currentPlayer || '');
+    localStorage.setItem('ff_angle', wheelAngle);
+  }
+
+  function loadState() {
+    const saved = localStorage.getItem('ff_players');
+    if (!saved) return false;
+    players = JSON.parse(saved);
+    if (!players.length) return false;
+    currentCat = localStorage.getItem('ff_cat') || 'Ice Breakers';
+    currentIdx = parseInt(localStorage.getItem('ff_idx')) || 0;
+    currentPlayer = localStorage.getItem('ff_player') || players[0];
+    wheelAngle = parseFloat(localStorage.getItem('ff_angle')) || 0;
+    return true;
+  }
+
+  function clearState() {
+    localStorage.removeItem('ff_players');
+    localStorage.removeItem('ff_cat');
+    localStorage.removeItem('ff_idx');
+    localStorage.removeItem('ff_player');
+    localStorage.removeItem('ff_angle');
+  }
 
   buildCountRow();
+  if (loadState()) {
+    showScreen('screenSpinner');
+    setTimeout(() => drawWheel(wheelAngle), 50);
+  }
 </script>
 </body>
 </html>
