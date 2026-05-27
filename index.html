@@ -137,6 +137,23 @@
     </div>
   </div>
 
+<!-- SPINNER SCREEN -->
+<div class="screen" id="screenSpinner">
+  <div class="spinner-screen">
+    <span class="spinner-title">Spin to see who answers</span>
+    <div class="wheel-wrap">
+      <div class="wheel-pointer">▼</div>
+      <canvas class="wheel-canvas" id="wheelCanvas" width="280" height="280"></canvas>
+    </div>
+    <button class="btn-spin" id="btnSpin" onclick="spinWheel()">Spin the Wheel</button>
+    <div class="spin-result" id="spinResult">
+      <span class="spin-result-label">answering this question</span>
+      <div class="spin-result-name" id="spinResultName"></div>
+    </div>
+    <button class="btn-show-question" id="btnShowQuestion" onclick="goToQuestion()">See the Question →</button>
+  </div>
+</div>
+
   <!-- GAME SCREEN -->
   <div class="screen" id="screenGame">
     <div class="player-pills" id="playerPills"></div>
